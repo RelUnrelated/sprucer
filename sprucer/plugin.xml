@@ -5,7 +5,7 @@
   <author>RelUnrelated</author>
   <description>Bypasses Sigil's native Gumbo parser to enforce strict 4-space XHTML indentation.</description>
   <engine>python3.4</engine>
-  <version>1.0.0</version>
+  <version>0.9.0</version>
   <oslist>osx,win,unx</oslist>
   <autostart>true</autostart>
   <autoclose>true</autoclose>
