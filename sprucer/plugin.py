@@ -25,19 +25,19 @@ def run(bk):
     }
 
     # Void Tags (Empty / Self-Closing Elements + Legacy)
-    # Removed 'br' and 'wbr' for custom handling
+    # Removed 'br', 'wbr', and 'img' for custom/inline handling
     void_tags = {
-        'area', 'base', 'col', 'command', 'embed', 'hr', 'img',
+        'area', 'base', 'col', 'command', 'embed', 'hr',
         'input', 'keygen', 'link', 'meta', 'param', 'source', 'track',
         'basefont', 'frame', 'isindex'
     }
 
     # Text-Level Semantics (Inline / Phrasing Content + Legacy)
-    # Added 'wbr' to prevent word-shattering
+    # Added 'wbr' and 'img' to prevent word/prose-shattering
     inline_tags = {
         'a', 'em', 'strong', 'small', 's', 'cite', 'q', 'dfn', 'abbr',
         'time', 'code', 'var', 'samp', 'kbd', 'sub', 'sup', 'i', 'b',
-        'u', 'mark', 'ruby', 'rt', 'rp', 'bdi', 'bdo', 'span', 'wbr',
+        'u', 'mark', 'ruby', 'rt', 'rp', 'bdi', 'bdo', 'span', 'wbr', 'img',
         'font', 'tt', 'big', 'strike', 'acronym', 'applet', 'blink', 'marquee', 'nobr'
     }
 
