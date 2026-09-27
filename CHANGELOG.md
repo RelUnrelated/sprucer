@@ -2,4 +2,4 @@
 _Initial public release of sprucer plugin_
 
 ## [0.9.0] - 2026-09-25
-_Pre-release testing, architecture validation, and UI stabilization._
+_Pre-release testing and architecture validation

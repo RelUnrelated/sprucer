@@ -16,7 +16,7 @@ from PySide6.QtCore import Qt
 class SprucerConfigDialog(QDialog):
     def __init__(self, current_char=" ", current_size=4, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Sprucer Settings")
+        self.setWindowTitle("sprucer settings")
         self.setModal(True)
         self.setMinimumWidth(300)
 
@@ -30,8 +30,8 @@ class SprucerConfigDialog(QDialog):
         btn_layout = QHBoxLayout()
 
         char_label = QLabel("Indentation Character:")
-        self.radio_spaces = QRadioButton("Spaces")
-        self.radio_tabs = QRadioButton("Tabs")
+        self.radio_spaces = QRadioButton("Space")
+        self.radio_tabs = QRadioButton("Tab")
 
         if self.indent_char == "\t":
             self.radio_tabs.setChecked(True)
