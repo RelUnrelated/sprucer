@@ -8,7 +8,7 @@ import json
 
 from PySide6.QtWidgets import (
     QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QRadioButton,
-    QSpinBox, QPushButton, QButtonGroup
+    QSpinBox, QPushButton, QButtonGroup, QMessageBox
 )
 from PySide6.QtCore import Qt
 
@@ -16,7 +16,7 @@ from PySide6.QtCore import Qt
 class SprucerConfigDialog(QDialog):
     def __init__(self, current_char=" ", current_size=4, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("sprucer settings")
+        self.setWindowTitle("Sprucer Settings")
         self.setModal(True)
         self.setMinimumWidth(300)
 
@@ -30,8 +30,8 @@ class SprucerConfigDialog(QDialog):
         btn_layout = QHBoxLayout()
 
         char_label = QLabel("Indentation Character:")
-        self.radio_spaces = QRadioButton("Space")
-        self.radio_tabs = QRadioButton("Tab")
+        self.radio_spaces = QRadioButton("Spaces")
+        self.radio_tabs = QRadioButton("Tabs")
 
         if self.indent_char == "\t":
             self.radio_tabs.setChecked(True)
@@ -120,6 +120,42 @@ def run(bk):
         print(f"Could not save config to {config_path}: {e}")
 
     # ==========================================
+    # 0.5 PRE-SCAN FOR SENSITIVE CSS
+    # ==========================================
+    whitespace_regex = re.compile(r'white-space\s*:\s*(pre|pre-wrap|pre-line|break-spaces)', re.IGNORECASE)
+    found_sensitive_css = False
+
+    # Check external stylesheets
+    for file_id, href in bk.css_iter():
+        css_data = bk.readfile(file_id)
+        if css_data and whitespace_regex.search(css_data):
+            found_sensitive_css = True
+            break
+
+    # Check HTML files for <style> blocks and inline style attributes
+    if not found_sensitive_css:
+        for file_id, href in bk.text_iter():
+            html_data = bk.readfile(file_id)
+            if html_data and whitespace_regex.search(html_data):
+                found_sensitive_css = True
+                break
+
+    if found_sensitive_css:
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Icon.Warning)
+        msg_box.setWindowTitle("Sensitive CSS Detected")
+        msg_box.setText(
+            "Sprucer found CSS rules (like 'pre-wrap' or 'pre-line') that rely on literal spaces and line breaks.")
+        msg_box.setInformativeText(
+            "Because Sprucer normalizes HTML spacing, it may alter the intended formatting of the elements using these rules.\n\nDo you wish to proceed with formatting?")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+
+        # Abort if the user selects No
+        if msg_box.exec() == QMessageBox.StandardButton.No:
+            return 0
+
+    # ==========================================
     # 1. THE EXHAUSTIVE W3C & XHTML 1.1 LEXICON
     # ==========================================
     skeleton_tags = {
@@ -171,7 +207,6 @@ def run(bk):
 
         def preserve_block(match):
             nonlocal block_counter
-            # Dynamically identify if it is PRE, STYLE, or SCRIPT
             tag = match.group(1).upper()
             placeholder = f"___SPRUCER_{tag}_{block_counter}___"
             preserved_blocks[placeholder] = match.group(0)
@@ -181,26 +216,25 @@ def run(bk):
         preserve_pattern = r'<(pre|style|script)\b[^>]*>.*?</\1>'
         body_payload = re.sub(preserve_pattern, preserve_block, body_payload, flags=re.IGNORECASE | re.DOTALL)
 
-        # 4. NORMALIZE SPACING
-        flat = re.sub(r'\s+', ' ', body_payload).strip()
+        # 4. NORMALIZE SPACING (ASCII ONLY)
+        flat = re.sub(r'\s+', ' ', body_payload, flags=re.ASCII).strip()
 
-        # 5. INJECT STRUCTURAL NEWLINES
+        # 5. INJECT STRUCTURAL NEWLINES (ASCII ONLY)
         skel_pattern = r'\s*(</?(' + '|'.join(skeleton_tags) + r')\b[^>]*>)\s*'
-        flat = re.sub(skel_pattern, r'\n\1\n', flat, flags=re.IGNORECASE)
+        flat = re.sub(skel_pattern, r'\n\1\n', flat, flags=re.IGNORECASE | re.ASCII)
 
         prose_open = r'\s*(<(' + '|'.join(prose_tags) + r')\b[^>]*>)\s*'
-        flat = re.sub(prose_open, r'\n\1', flat, flags=re.IGNORECASE)
+        flat = re.sub(prose_open, r'\n\1', flat, flags=re.IGNORECASE | re.ASCII)
 
         prose_close = r'\s*(</(' + '|'.join(prose_tags) + r')>)\s*'
-        flat = re.sub(prose_close, r'\1\n', flat, flags=re.IGNORECASE)
+        flat = re.sub(prose_close, r'\1\n', flat, flags=re.IGNORECASE | re.ASCII)
 
         void_pattern = r'\s*(<(' + '|'.join(void_tags) + r')\b[^>]*>)\s*'
-        flat = re.sub(void_pattern, r'\n\1\n', flat, flags=re.IGNORECASE)
+        flat = re.sub(void_pattern, r'\n\1\n', flat, flags=re.IGNORECASE | re.ASCII)
 
-        flat = re.sub(r'\s*(<br\b[^>]*>)\s*', r'\1\n', flat, flags=re.IGNORECASE)
+        flat = re.sub(r'\s*(<br\b[^>]*>)\s*', r'\1\n', flat, flags=re.IGNORECASE | re.ASCII)
 
-        # Ensure specifically tagged placeholders sit on their own lines
-        flat = re.sub(r'\s*(___SPRUCER_(PRE|STYLE|SCRIPT)_\d+___)\s*', r'\n\1\n', flat)
+        flat = re.sub(r'\s*(___SPRUCER_(PRE|STYLE|SCRIPT)_\d+___)\s*', r'\n\1\n', flat, flags=re.ASCII)
         flat = re.sub(r'\n+', '\n', flat).strip()
 
         # ==========================================
@@ -234,14 +268,11 @@ def run(bk):
             indent_prefix = match.group(1) if match else ""
 
             if "PRE" in placeholder:
-                # Pre tags: 100% untouched. Closing tag stays exactly where it was.
                 final_html = final_html.replace(placeholder, original_content)
             else:
-                # Style/Script tags: Inner content untouched, but closing tag aligned to opening tag
                 tag_name = "style" if "STYLE" in placeholder else "script"
-                # Strip any existing trailing whitespace, then forcefully inject a newline + the indent prefix
                 padded_content = re.sub(r'\s*(</' + tag_name + r'>)$', r'\n' + indent_prefix + r'\1', original_content,
-                                        flags=re.IGNORECASE)
+                                        flags=re.IGNORECASE | re.ASCII)
                 final_html = final_html.replace(placeholder, padded_content)
 
         bk.writefile(file_id, final_html)

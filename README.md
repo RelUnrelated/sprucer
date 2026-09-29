@@ -1,6 +1,6 @@
 # sprucer
 
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Author:** RelUnrelated (<dan@relunrelated.com>)  
 **License:** GNU General Public License v3.0 (GPLv3) — See the `LICENSE.md` file for details.  
 **Changelog:** See the `CHANGELOG.md` file for release history and updates.  
